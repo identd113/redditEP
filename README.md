@@ -85,3 +85,7 @@ If you're setting up real Reddit credentials, also review Reddit's
 for anything specific it requires beyond what's already here (a
 descriptive user agent, human approval before every post, PRAW's built-in
 rate limiting).
+
+## License
+
+GNU General Public License, version 3. See [LICENSE](LICENSE). Anyone may use and modify this code, but a modified version that is shared must also be released as source under the GPLv3.

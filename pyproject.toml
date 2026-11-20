@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "edenprairie-news"
 version = "0.1.0"
 description = "News aggregation and moderation-assist tool for r/edenprairie"
+license = "GPL-3.0-only"
 requires-python = ">=3.11"
 dependencies = [
     "feedparser>=6.0",
