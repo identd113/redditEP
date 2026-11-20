@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key><string>com.example.edenprairie-news</string>
+
+    <!-- Template: replace /path/to/redditEP and YOURNAME with your own paths, then copy to
+         ~/Library/LaunchAgents. The review UI for r/edenprairie on port 1981, reachable on the home network only (no login, so
+         never expose it). Started at login and restarted if it stops. -->
+    <key>ProgramArguments</key>
+    <array>
+      <string>/path/to/redditEP/.venv/bin/python</string>
+      <string>-m</string>
+      <string>edenprairie_news.web.app</string>
+    </array>
+
+    <key>WorkingDirectory</key><string>/path/to/redditEP</string>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/YOURNAME/Library/Logs/edenprairie-news.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOURNAME/Library/Logs/edenprairie-news.log</string>
+  </dict>
+</plist>

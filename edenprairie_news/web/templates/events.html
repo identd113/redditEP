@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% macro fields(e) %}
+        <label>What <input type="text" name="title" value="{{ e.title }}"></label>
+        <label>Date <input type="text" name="start_date" value="{{ e.start_date }}" style="width:9rem;display:inline"></label>
+        <label>to <input type="text" name="end_date" value="{{ e.end_date }}" placeholder="optional" style="width:9rem;display:inline"></label>
+        <label>from <input type="text" name="start_time" value="{{ e.start_time }}" placeholder="18:00" style="width:6rem;display:inline"></label>
+        <label>to <input type="text" name="end_time" value="{{ e.end_time }}" placeholder="20:00" style="width:6rem;display:inline"></label>
+        <label>Where <input type="text" name="location" value="{{ e.location }}" placeholder="not found, please add if you know it"></label>
+        <label>Website <input type="text" name="source_url" value="{{ e.source_url }}"></label>
+{% endmacro %}
+{% block title %}Events - Eden Prairie News{% endblock %}
+{% block content %}
+  <h1>Events</h1>
+  <p class="meta">Dates, times and places found in the articles and the local paper's calendar. Check each one, fix what is wrong, and approve it; only approved events go on the wiki page. You can edit or remove an event at any time, including ones already on the calendar.</p>
+  {% if request.args.get('event_error') %}<p class="meta"><strong>Not saved: {{ request.args.get('event_msg') or 'that date is not valid; use year-month-day, for example 2026-11-21.' }}</strong></p>{% endif %}
+  {% if request.args.get('saved') %}<p class="meta">Saved.</p>{% endif %}
+
+  <h2>To review ({{ suggested|length }})</h2>
+  {% for e in suggested %}
+    <article class="card">
+      <form method="post" action="{{ url_for('event_edit', event_id=e.id) }}">
+        {{ fields(e) }}
+        <button type="submit" class="secondary">Save changes</button>
+      </form>
+      <p class="meta">From: &ldquo;{{ e.snippet }}&rdquo; {% if e.source_url %}&middot; <a href="{{ e.source_url }}" target="_blank">source</a>{% endif %}
+        {% if e.location_source == 'phrase' %}&middot; place guessed from the wording, please check{% elif not e.location %}&middot; no place found{% endif %}</p>
+      <form method="post" action="{{ url_for('event_action', event_id=e.id, action='approve') }}" style="display:inline"><button type="submit">Approve</button></form>
+      <form method="post" action="{{ url_for('event_action', event_id=e.id, action='remove') }}" style="display:inline"><button type="submit" class="danger" data-help-key="Remove event">Remove</button></form>
+    </article>
+  {% else %}
+    <p class="empty">Nothing waiting. Suggestions appear when the pipeline finds events.</p>
+  {% endfor %}
+
+  <h2>On the calendar ({{ approved|length }})</h2>
+  {% for e in approved %}
+    <article class="card {{ 'muted' if (e.end_date or e.start_date) < today }}">
+      <p><strong>{{ e.preview }}</strong>{% if (e.end_date or e.start_date) < today %} <span class="badge tag">past</span>{% endif %}</p>
+      <details>
+        <summary>Edit this event</summary>
+        <form method="post" action="{{ url_for('event_edit', event_id=e.id) }}">
+          {{ fields(e) }}
+          <button type="submit">Save changes</button>
+        </form>
+      </details>
+      <form method="post" action="{{ url_for('event_action', event_id=e.id, action='reopen') }}" style="display:inline"><button type="submit" class="secondary">Back to review</button></form>
+      <form method="post" action="{{ url_for('event_action', event_id=e.id, action='remove') }}" style="display:inline"><button type="submit" class="danger" data-help-key="Remove event">Remove</button></form>
+    </article>
+  {% else %}
+    <p class="empty">No approved events yet.</p>
+  {% endfor %}
+
+  <h2>Add one by hand</h2>
+  <form method="post" action="{{ url_for('event_add') }}">
+    <label>What <input type="text" name="title"></label>
+    <label>Date (year-month-day) <input type="text" name="start_date" placeholder="2026-12-05" style="width:9rem;display:inline"></label>
+    <label>from <input type="text" name="start_time" placeholder="18:00" style="width:6rem;display:inline"></label>
+    <label>to <input type="text" name="end_time" placeholder="20:00" style="width:6rem;display:inline"></label>
+    <label>Where <input type="text" name="location"></label>
+    <label>Website <input type="text" name="source_url"></label>
+    <button type="submit">Add as approved</button>
+  </form>
+
+  <h2>Wiki page: r/{{ subreddit }}/wiki/{{ wiki_page_name }}</h2>
+  {% if request.args.get('wiki_ok') %}<p class="meta">The wiki page was updated.</p>{% endif %}
+  {% if request.args.get('wiki_error') %}<p class="meta">Could not update the wiki: {{ request.args.get('wiki_error') }}.</p>{% endif %}
+  <form method="post" action="{{ url_for('events_wiki') }}" style="display:inline"><button type="submit">Update the wiki page</button></form>
+  <a href="{{ wiki_edit_url }}" target="_blank">Open the wiki editor</a>
+  <p class="meta">This is the text the page will contain. Updating from here needs a connected Reddit account that may edit the wiki; otherwise paste this into the editor.</p>
+  <textarea rows="14" readonly>{{ wiki_text }}</textarea>
+
+  {% if removed %}
+  <details>
+    <summary>Removed events ({{ removed|length }}) &mdash; these will not be suggested again</summary>
+    {% for e in removed %}
+      <article class="card muted">
+        <p class="meta">{{ e.start_date }} &middot; {{ e.title }}{% if e.location %} &middot; {{ e.location }}{% endif %}</p>
+        <form method="post" action="{{ url_for('event_action', event_id=e.id, action='restore') }}" style="display:inline"><button type="submit" class="secondary" data-help-key="Restore event">Restore</button></form>
+      </article>
+    {% endfor %}
+  </details>
+  {% endif %}
+{% endblock %}

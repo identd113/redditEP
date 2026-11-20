@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Eden Prairie News{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav class="topnav">
+    <a href="{{ url_for('index') }}">Eden Prairie News</a>
+    <a href="{{ url_for('index') }}">Drafts</a>
+    <a href="{{ url_for('events_page') }}">Events</a>
+    {% if mod_queue_enabled %}<a href="{{ url_for('modqueue') }}">Mod Queue</a>{% endif %}
+    <a href="{{ url_for('config_page') }}">Config</a>
+  </nav>
+  <main class="container {% block main_class %}{% endblock %}">
+    {% block content %}{% endblock %}
+  </main>
+  <script id="button-help" type="application/json">{{ button_help|tojson }}</script>
+  <script>
+    /* Puts a small tappable "i" after each button; tapping it shows what the button does. Texts come from
+       edenprairie_news/web/help_texts.py. Works without hovering, so it works on a phone. */
+    (function () {
+      var data = JSON.parse(document.getElementById("button-help").textContent);
+      function helpFor(button) {
+        var key = button.getAttribute("data-help-key") || button.textContent.replace(/\s+/g, " ").trim();
+        if (data.exact[key]) return data.exact[key];
+        for (var prefix in data.prefix) { if (key.indexOf(prefix) === 0) return data.prefix[prefix]; }
+        return "";
+      }
+      document.querySelectorAll("button").forEach(function (button) {
+        var text = helpFor(button);
+        if (!text) return;
+        var label = button.textContent.replace(/\s+/g, " ").trim();
+        var box = document.createElement("details");
+        box.className = "info";
+        var tap = document.createElement("summary");
+        tap.textContent = "i";
+        tap.setAttribute("aria-label", "What does \"" + label + "\" do?");
+        var words = document.createElement("span");
+        words.textContent = text;
+        box.appendChild(tap);
+        box.appendChild(words);
+        var anchor = button.parentElement.tagName === "A" ? button.parentElement : button;
+        anchor.insertAdjacentElement("afterend", box);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Edit draft - Eden Prairie News{% endblock %}
+{% block content %}
+  <p><a href="{{ url_for('index') }}">&larr; Back to drafts</a></p>
+  <h1>Edit draft</h1>
+  <p class="meta">Source: <a href="{{ article.url }}" target="_blank">{{ article.source }}</a> &middot; posted {{ article.published_at|posted_when }} &middot; status: {{ article.status }}</p>
+
+  <form method="post" action="{{ url_for('article_edit', article_id=article.id) }}">
+    <label for="post_title">Post title</label>
+    <input type="text" id="post_title" name="post_title" value="{{ article.post_title }}" maxlength="300">
+
+    <label for="post_body">Post body (Markdown)</label>
+    <textarea id="post_body" name="post_body" rows="12">{{ article.post_body }}</textarea>
+
+    <button type="submit">Save changes</button>
+  </form>
+
+  {% if article.status in ("drafted", "sent") %}
+    <form method="get" action="{{ url_for('article_post_preview', article_id=article.id) }}">
+      <button type="submit" class="post">Post to Reddit</button>
+    </form>
+  {% endif %}
+  {% if article.status == "drafted" %}
+    {% if api_posting_enabled %}
+    <form method="post" action="{{ url_for('article_approve', article_id=article.id) }}">
+      <button type="submit" class="secondary">Post with the API</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{{ url_for('article_remove', article_id=article.id) }}">
+      <button type="submit" class="danger" title="Take this off the list for good. The link is remembered and will not be added again.">Remove</button>
+    </form>
+  {% endif %}
+{% endblock %}

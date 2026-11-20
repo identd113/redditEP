@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Before posting - Eden Prairie News{% endblock %}
+{% block content %}
+  <p><a href="{{ url_for('index') }}">&larr; Back to drafts</a></p>
+  <h1>Before you post</h1>
+  <p class="meta">{{ article.source }} &middot; posted {{ article.published_at|posted_when }} &middot; <a href="{{ article.url }}" target="_blank">article</a></p>
+  {% if error %}<p class="meta"><strong>{{ error }}</strong></p>{% endif %}
+
+  <h2>The Reddit post</h2>
+  <article class="card">
+    <h3>{{ article.post_title }}</h3>
+    <pre style="white-space:pre-wrap;margin:0;font-family:inherit;">{{ article.post_body }}</pre>
+    <p class="meta">Goes to r/{{ subreddit }}. <a href="{{ url_for('article_detail', article_id=article.id) }}">Edit the text</a></p>
+  </article>
+
+  <form method="post" action="{{ url_for('article_send', article_id=article.id) }}" target="_blank"
+        onsubmit="setTimeout(function(){ location.href='{{ url_for('index', tab='sent') }}'; }, 900);">
+    <input type="hidden" name="from_preview" value="1">
+
+    <h2>Add to the events calendar?</h2>
+    {% if found %}
+      <p class="meta">These dates and places were found in the article. Tick the ones to put on the calendar (the r/{{ subreddit }} wiki page "{{ wiki_page_name }}"), and fix anything that is wrong first. Anything you leave unticked stays on the Events page for later.</p>
+    {% else %}
+      <p class="meta">No dates or places were found in this article, so there is nothing to add automatically. You can add one yourself below if the article mentions an event.</p>
+    {% endif %}
+
+    {% for e in found %}
+      <article class="card">
+        {% if e.status == 'approved' %}
+          <p><strong>Already on the calendar.</strong></p>
+          <p>{{ e.preview }}</p>
+        {% else %}
+          <input type="hidden" name="event_id" value="{{ e.id }}">
+          <label style="display:flex; align-items:center; gap:0.5rem; font-weight:bold;">
+            <input type="checkbox" name="add_{{ e.id }}" style="width:auto;" checked> Add to the calendar
+          </label>
+          <label>What <input type="text" name="title_{{ e.id }}" value="{{ e.title }}"></label>
+          <label>When (date) <input type="text" name="start_date_{{ e.id }}" value="{{ e.start_date }}" style="width:9rem;display:inline"></label>
+          <label>to <input type="text" name="end_date_{{ e.id }}" value="{{ e.end_date }}" placeholder="optional" style="width:9rem;display:inline"></label>
+          <label>from <input type="text" name="start_time_{{ e.id }}" value="{{ e.start_time }}" placeholder="18:00" style="width:6rem;display:inline"></label>
+          <label>to <input type="text" name="end_time_{{ e.id }}" value="{{ e.end_time }}" placeholder="20:00" style="width:6rem;display:inline"></label>
+          <label>Where <input type="text" name="location_{{ e.id }}" value="{{ e.location }}" placeholder="not found, please add if you know it"></label>
+          <label>Website <input type="text" name="source_url_{{ e.id }}" value="{{ e.source_url }}"></label>
+          <p class="meta">On the wiki page it will read: <span>{{ e.preview }}</span></p>
+          <p class="meta">Found in: &ldquo;{{ e.snippet }}&rdquo;{% if e.location_source == 'phrase' %} &middot; the place was guessed from the wording, please check{% elif not e.location %} &middot; no place found{% endif %}</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+
+    <details {% if not found %}open{% endif %}>
+      <summary>Add an event by hand</summary>
+      <label>What <input type="text" name="new_title"></label>
+      <label>Date (year-month-day) <input type="text" name="new_start_date" placeholder="2026-12-05" style="width:9rem;display:inline"></label>
+      <label>from <input type="text" name="new_start_time" placeholder="18:00" style="width:6rem;display:inline"></label>
+      <label>to <input type="text" name="new_end_time" placeholder="20:00" style="width:6rem;display:inline"></label>
+      <label>Where <input type="text" name="new_location"></label>
+      <label>Website <input type="text" name="new_source_url" value="{{ article.url }}"></label>
+    </details>
+
+    <p class="meta">Pressing the button saves these choices, marks the article as sent, and opens Reddit's own page in a new tab with the post filled in. You press Post there.</p>
+    <button type="submit" class="post">Post to Reddit</button>
+  </form>
+{% endblock %}

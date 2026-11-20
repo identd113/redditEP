@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Mod Queue - Eden Prairie News{% endblock %}
+{% block content %}
+  <p><a href="{{ url_for('index') }}">&larr; Back to drafts</a></p>
+  <h1>Mod queue</h1>
+
+  {% if not mod_queue_enabled %}
+    <p class="empty">
+      Mod queue is disabled -- the configured Reddit account isn't set up as a
+      subreddit moderator. Enable it from <a href="{{ url_for('config_page') }}">Config</a>
+      once that changes.
+    </p>
+  {% else %}
+    {% for item in items %}
+      <article class="card">
+        <h3><a href="{{ item.permalink }}" target="_blank">{{ item.title or item.body }}</a></h3>
+        <p class="meta">{{ item.kind }} by u/{{ item.author }} &middot; {{ item.num_reports }} report(s)</p>
+        <form method="post" action="{{ url_for('modqueue_approve', fullname=item.fullname) }}" style="display:inline">
+          <button type="submit" data-help-key="Reddit: Approve">Approve</button>
+        </form>
+        <form method="post" action="{{ url_for('modqueue_remove', fullname=item.fullname) }}" style="display:inline">
+          <button type="submit" class="secondary" data-help-key="Reddit: Remove">Remove</button>
+        </form>
+        <form method="post" action="{{ url_for('modqueue_remove', fullname=item.fullname) }}" style="display:inline">
+          <input type="hidden" name="spam" value="1">
+          <button type="submit" class="danger" data-help-key="Reddit: Remove as spam">Remove as spam</button>
+        </form>
+      </article>
+    {% else %}
+      <p class="empty">Mod queue is empty.</p>
+    {% endfor %}
+  {% endif %}
+{% endblock %}

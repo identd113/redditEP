@@ -1,0 +1,21 @@
+# Starter list of Eden Prairie places the event extractor recognises by name (case does not matter).
+# It is only a head start: add the places that come up in your news, one per line. A place that is not
+# here can still be found from phrases like "at the Community Center" or from a street address.
+venues:
+  - Eden Prairie City Center
+  - Eden Prairie Center
+  - Eden Prairie Community Center
+  - Eden Prairie Senior Center
+  - Eden Prairie Library
+  - Eden Prairie High School
+  - Eden Prairie Schools District Center
+  - Staring Lake Outdoor Center
+  - Staring Lake
+  - Round Lake Park
+  - Purgatory Creek Park
+  - Anderson Lakes Park
+  - Miller Park
+  - Mitchell Lake
+  - Flying Cloud Airport
+  - Eden Prairie Art Center
+  - Eden Prairie Ice Arena

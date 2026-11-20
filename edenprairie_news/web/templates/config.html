@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Config - Eden Prairie News{% endblock %}
+{% block content %}
+  <h1>Config</h1>
+  <p class="meta">
+    Saved here immediately overrides <code>.env</code> / <code>feeds.yaml</code> and takes
+    effect on the next pipeline run or web request -- no restart needed.
+  </p>
+
+  <h2>Reddit</h2>
+  <p class="meta">
+    Status:
+    {% if reddit_config.is_configured %}
+      <strong style="color:#0f5132">configured</strong>
+    {% else %}
+      <strong style="color:#664d03">not configured</strong>
+    {% endif %}
+    &middot;
+    Auth method:
+    {% if reddit_config.refresh_token %}
+      <strong style="color:#0f5132">Reddit login (OAuth)</strong>
+    {% elif reddit_config.username and reddit_config.password %}
+      <strong style="color:#664d03">username/password</strong>
+    {% else %}
+      <strong>none</strong>
+    {% endif %}
+  </p>
+
+  {% if request.args.get('oauth_connected') %}
+    <p class="meta" style="color:#0f5132">Connected via Reddit login -- refresh token saved.</p>
+  {% elif request.args.get('oauth_error') %}
+    <p class="meta" style="color:#842029">
+      Reddit login failed ({{ request.args.get('oauth_error') }}). Make sure Client ID/Secret
+      are saved below first, and that the redirect URI shown below is registered on the app
+      at <a href="https://www.reddit.com/prefs/apps" target="_blank">reddit.com/prefs/apps</a>.
+    </p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('config_reddit') }}">
+    <p class="meta">For statistics only the client ID and secret are needed (read-only; no account logs in). Register a "script" app at reddit.com/prefs/apps to get them.</p>
+    <label for="client_id">Client ID</label>
+    <input type="text" id="client_id" name="client_id" placeholder="{{ 'set (leave blank to keep)' if reddit_config.client_id else 'not set' }}">
+
+    <label for="client_secret">Client secret</label>
+    <input type="password" id="client_secret" name="client_secret" placeholder="{{ 'set (leave blank to keep)' if reddit_config.client_secret else 'not set' }}">
+
+    <p class="meta">
+      Enter and save the Client ID/Secret above first, then use "Connect via Reddit login"
+      below -- preferred over the username/password fields, since it never stores the
+      account's raw password. Needs this exact redirect URI registered on the app at
+      <a href="https://www.reddit.com/prefs/apps" target="_blank">reddit.com/prefs/apps</a>:
+      <code>{{ reddit_redirect_uri }}</code>
+    </p>
+
+    <label for="username">Reddit account username (fallback if not using Reddit login)</label>
+    <input type="text" id="username" name="username" placeholder="{{ 'set (leave blank to keep)' if reddit_config.username else 'not set' }}">
+
+    <label for="password">Reddit account password (fallback if not using Reddit login)</label>
+    <input type="password" id="password" name="password" placeholder="{{ 'set (leave blank to keep)' if reddit_config.password else 'not set' }}">
+
+    <label for="user_agent">User agent</label>
+    <input type="text" id="user_agent" name="user_agent" value="{{ reddit_config.user_agent }}">
+
+    <label for="subreddit">Subreddit</label>
+    <input type="text" id="subreddit" name="subreddit" value="{{ reddit_config.subreddit }}">
+
+    <label for="sync_limit">Subreddit sync limit</label>
+    <input type="text" id="sync_limit" name="sync_limit" value="{{ reddit_config.sync_limit }}">
+
+    <label style="display:flex; align-items:center; gap:0.5rem; font-weight:normal;">
+      <input type="checkbox" name="mod_queue_enabled" style="width:auto;" {% if mod_queue_enabled %}checked{% endif %}>
+      Enable Mod Queue (only works if the account above is a subreddit moderator)
+    </label>
+
+    <button type="submit">Save Reddit settings</button>
+  </form>
+  <p>
+    <a href="{{ url_for('reddit_oauth_start') }}"><button type="button">Connect via Reddit login</button></a>
+  </p>
+
+  <h2>Discord</h2>
+  <p class="meta">
+    Status:
+    {% if discord_config.webhook_url %}
+      <strong style="color:#0f5132">configured</strong>
+    {% else %}
+      <strong style="color:#664d03">not configured (optional)</strong>
+    {% endif %}
+  </p>
+  <form method="post" action="{{ url_for('config_discord') }}">
+    <label for="webhook_url">Discord webhook URL</label>
+    <input type="text" id="webhook_url" name="webhook_url" placeholder="{{ 'set (leave blank to keep)' if discord_config.webhook_url else 'not set' }}">
+    <button type="submit">Save Discord webhook</button>
+  </form>
+
+  <h2>How old an article may be</h2>
+  <p class="meta">Articles published longer ago than this are not drafted. Default 30 days; 0 means no limit. Articles with no date are always kept.</p>
+  <form method="post" action="{{ url_for('config_age') }}">
+    <label for="max_age_days">Days</label>
+    <input type="text" inputmode="numeric" id="max_age_days" name="max_age_days" value="{{ max_age_days }}" style="width:6rem;">
+    <button type="submit">Save</button>
+  </form>
+  {% if cleaned is not none %}<p class="meta">Removed {{ cleaned }} old draft(s). They are under "Removed" on the drafts page and can be restored.</p>{% endif %}
+  {% if max_age_days > 0 %}
+  <form method="post" action="{{ url_for('config_age_cleanup') }}" onsubmit="return confirm('Remove the {{ stale_drafts }} drafts older than {{ max_age_days }} days? You can restore them from the Removed list.');">
+    <button type="submit" class="secondary"{% if not stale_drafts %} disabled{% endif %}>Remove the {{ stale_drafts }} stored draft{{ '' if stale_drafts == 1 else 's' }} older than {{ max_age_days }} days now</button>
+  </form>
+  {% endif %}
+
+  <h2>RSS feeds ({{ feeds|length }})</h2>
+  {% for feed in feeds %}
+    <article class="card">
+      <strong>{{ feed.name }}</strong>
+      <p class="meta">{{ feed.url }}</p>
+      <p class="meta">parser: {{ feed.parser }}{% if 'needs-filter' in feed.tags %} &middot; relevance filter on{% endif %}{% if 'related' in feed.tags %} &middot; nearby city{% endif %}</p>
+      <form method="post" action="{{ url_for('config_feeds_delete', feed_id=feed.id) }}">
+        <button type="submit" class="danger">Delete</button>
+      </form>
+    </article>
+  {% else %}
+    <p class="empty">No feeds configured.</p>
+  {% endfor %}
+
+  <h3>Add a feed</h3>
+  <form method="post" action="{{ url_for('config_feeds_add') }}">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required>
+
+    <label for="url">Feed URL</label>
+    <input type="text" id="url" name="url" required>
+
+    <label for="parser">Parser</label>
+    <select id="parser" name="parser">
+      {% for parser_name in parser_names %}
+        <option value="{{ parser_name }}">{{ parser_name }}</option>
+      {% endfor %}
+    </select>
+
+    <label style="display:flex; align-items:center; gap:0.5rem; font-weight:normal;">
+      <input type="checkbox" name="needs_filter" style="width:auto;">
+      This feed covers a broader area -- only keep entries mentioning Eden Prairie
+    </label>
+    <label style="display:flex; align-items:center; gap:0.5rem; font-weight:normal;">
+      <input type="checkbox" name="related" style="width:auto;">
+      Nearby city (Chaska, Bloomington...) -- list its drafts separately, and do not look for events in them
+    </label>
+
+    <button type="submit">Add feed</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,38 @@
+# One-time seed only. This file is read exactly once, the first time the
+# app runs against a fresh database, to populate the feeds table -- after
+# that, the DB is authoritative and this file is no longer read. Manage
+# feeds from the web UI's Config page (nav bar) instead of editing this
+# file, unless you're setting up a brand-new install.
+#
+# Feed sources for the reader stage. Each entry needs a name and a url.
+#
+# "tags" is free-form; the one tag with special meaning today is
+# "needs-filter", which applies the parser's keyword relevance filter
+# (parser.filter_relevant) for broad/metro-area feeds that aren't already
+# scoped to Eden Prairie. Feeds that are already Eden Prairie-specific
+# (e.g. a scoped Google News search) should leave tags empty.
+#
+# "parser" names a parsing strategy from edenprairie_news/feed_parsers/
+# (defaults to "default", which just strips HTML from the feed's own
+# summary). If a source's feed only gives truncated/garbled summaries,
+# write a new strategy in feed_parsers/ (e.g. one that fetches the full
+# article page) and reference it here by name -- see
+# edenprairie_news/feed_parsers/__init__.py.
+#
+# The Google News entry below uses Google's standard RSS search URL format
+# (news.google.com/rss/search?q=...) scoped to "Eden Prairie, MN" - it's a
+# real, generic query pattern, not a fabricated link.
+#
+# Add your preferred local outlets here as you find their RSS feed URLs,
+# e.g. the Sun Current, Eden Prairie Local News, or the city of Eden
+# Prairie's own news/press-release feed if it publishes one.
+feeds:
+  - name: "Google News: Eden Prairie, MN"
+    url: "https://news.google.com/rss/search?q=%22Eden+Prairie%2C+MN%22&hl=en-US&gl=US&ceid=US:en"
+    tags: []
+    parser: default
+
+  # - name: "Sun Current"
+  #   url: "https://replace-with-actual-feed-url"
+  #   tags: ["needs-filter"]
+  #   parser: default

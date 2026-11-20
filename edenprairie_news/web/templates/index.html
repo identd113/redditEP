@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% macro remove_button(article, confirm=False) %}
+      <form method="post" action="{{ url_for('article_remove', article_id=article.id) }}" style="display:inline"{% if confirm %} onsubmit="return confirm('Remove this from the list? The Reddit post itself stays where it is.');"{% endif %}>
+        <button type="submit" class="danger" title="Take this off the list for good. The link is remembered and will not be added again.">Remove</button>
+      </form>
+{% endmacro %}
+{% macro draft_tile(article) %}
+    <article class="card news">
+      {% if article.image_url %}
+        <img class="thumb" src="{{ article.image_url }}" alt="">
+      {% endif %}
+      <h3><a href="{{ url_for('article_detail', article_id=article.id) }}">{{ article.title }}</a>{% if article.id in obit_ids %} <span class="badge flag">obituary</span>{% endif %}</h3>
+      <p class="byline">{{ article.author or "Staff" }} &middot; {{ article.source }} &middot; posted {{ article.published_at|posted_when }}</p>
+      {% if article.scope != 'related' %}<p>{{ article.summary[:280] }}{% if article.summary|length > 280 %}...{% endif %}</p>{% endif %}
+      <form method="get" action="{{ url_for('article_post_preview', article_id=article.id) }}" style="display:inline">
+        <button type="submit" class="post">Post to Reddit</button>
+      </form>
+      {% if api_posting_enabled and article.scope != 'related' %}
+      <form method="post" action="{{ url_for('article_approve', article_id=article.id) }}" style="display:inline">
+        <button type="submit" class="secondary">Post with the API</button>
+      </form>
+      {% endif %}
+      <a href="{{ url_for('article_detail', article_id=article.id) }}">Edit</a>
+      {{ remove_button(article) }}
+    </article>
+{% endmacro %}
+{% block title %}Eden Prairie News{% endblock %}
+{% block main_class %}wide{% endblock %}
+{% block content %}
+<div class="layout">
+  <nav class="side" aria-label="Sections">
+    {% for key, label, count in tabs %}
+      <a href="{{ url_for('index', tab=key) }}" class="{{ 'active' if tab == key }}"{% if tab == key %} aria-current="page"{% endif %}>{{ label }} <span class="count">{{ count }}</span></a>
+    {% endfor %}
+  </nav>
+
+  <section class="panel">
+
+  {% if tab == 'drafts' %}
+    <h2>Drafts ({{ drafted|length + nearby|length }})</h2>
+    <form method="post" action="{{ url_for('pipeline_run') }}" style="display:inline">
+      <button type="submit">Run pipeline now</button>
+    </form>
+    {% if request.args.get('ran') %}
+      <p class="meta">Fetched {{ request.args.get('fetched') }} entries: {{ request.args.get('new') }} new article(s){% if request.args.get('events') and request.args.get('events') != '0' %}, {{ request.args.get('events') }} new event(s) to review{% endif %}.</p>
+    {% endif %}
+    <p class="meta">
+      {% if show_obits %}Showing obituaries ({{ obit_ids|length }}). <a href="{{ url_for('index', tab='drafts', source=source or None) }}">Hide obituaries</a>
+      {% elif obit_ids %}{{ obit_ids|length }} obituar{{ 'y' if obit_ids|length == 1 else 'ies' }} hidden. <a href="{{ url_for('index', tab='drafts', obits='1', source=source or None) }}">Show obituaries</a>
+      {% else %}No obituaries in the drafts.{% endif %}
+    </p>
+    <p class="filter-label">Filter by source</p>
+    <div class="chips">
+      <a class="chip {{ 'active' if not source }}" href="{{ url_for('index', tab='drafts', obits='1' if show_obits else None) }}">All <span class="count">{{ sources|sum(attribute=1) }}</span></a>
+      {% for name, n, near in sources %}
+        <a class="chip {{ 'nearby' if near }} {{ 'active' if source == name }}" href="{{ url_for('index', tab='drafts', source=name, obits='1' if show_obits else None) }}">{{ name }} <span class="count">{{ n }}</span></a>
+      {% endfor %}
+    </div>
+
+    {% for article in drafted %}{{ draft_tile(article) }}
+    {% else %}
+      {% if not nearby %}<p class="empty">No drafts{% if source %} from this source{% endif %}. Run the pipeline to fetch new articles.</p>{% endif %}
+    {% endfor %}
+
+    {% if nearby %}
+      <h3 class="group">Nearby cities ({{ nearby|length }})</h3>
+      <p class="meta">News from neighbouring cities. They come after Eden Prairie's own drafts; post one only when it affects Eden Prairie too.</p>
+      {% for article in nearby %}{{ draft_tile(article) }}{% endfor %}
+    {% endif %}
+
+  {% elif tab == 'sent' %}
+    <h2>Sent to Reddit ({{ sent|length }})</h2>
+    <p class="meta">Opened in Reddit for you to post. Each is matched to its Reddit post automatically ("Check Reddit for my posts") or when you paste the post's address.</p>
+    <form method="post" action="{{ url_for('reddit_match') }}" style="display:inline">
+      <button type="submit" class="secondary">Check Reddit for my posts</button>
+    </form>
+    {% if request.args.get('matched') is not none and request.args.get('matched') != '' %}
+      <p class="meta">Matched {{ request.args.get('matched') }} post(s) to articles.
+      {% if request.args.get('match_error') %}Reddit's feed could not be read: {{ request.args.get('match_error') }}. You can paste a post's link by hand below.{% endif %}</p>
+    {% endif %}
+    {% for article in sent %}
+      <article class="card news">
+        <h3><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></h3>
+        <p class="byline">{{ article.source }} &middot; posted {{ article.published_at|posted_when }} &middot; sent {{ article.sent_at[:16] if article.sent_at else "" }}</p>
+        {% if request.args.get('link_error') == article.id|string %}<p class="meta">That is not a Reddit post address.</p>{% endif %}
+        <form method="post" action="{{ url_for('article_link', article_id=article.id) }}" style="display:inline">
+          <input type="text" name="reddit_url" placeholder="paste the Reddit post's address" style="width:22rem;display:inline;padding:0.2rem;">
+          <button type="submit">Link</button>
+        </form>
+        <form method="post" action="{{ url_for('article_send', article_id=article.id) }}" target="_blank" style="display:inline">
+          <button type="submit" class="secondary">Open Reddit again</button>
+        </form>
+        <form method="post" action="{{ url_for('article_reopen', article_id=article.id) }}" style="display:inline">
+          <button type="submit" class="secondary">Not posted, back to drafts</button>
+        </form>
+        {{ remove_button(article, confirm=True) }}
+      </article>
+    {% else %}
+      <p class="empty">Nothing waiting to be matched.</p>
+    {% endfor %}
+
+  {% elif tab == 'posted' %}
+    <h2>Posted ({{ posted|length }})</h2>
+    <form method="post" action="{{ url_for('stats_refresh') }}" style="display:inline">
+      <button type="submit" class="secondary">Refresh stats</button>
+    </form>
+    {% if request.args.get('stats_error') %}
+      <p class="meta">Could not read the numbers from Reddit: {{ request.args.get('stats_error') }}. Statistics need a read-only Reddit app: register a "script" app at reddit.com/prefs/apps and enter its client id and secret on the Config page.</p>
+    {% elif request.args.get('stats_tracked') %}
+      <p class="meta">Checked {{ request.args.get('stats_tracked') }} posted article(s): {{ request.args.get('stats_snapshots') }} new snapshot(s), {{ request.args.get('stats_comments') }} new comment(s).
+      {% if request.args.get('stats_removed') %}Removed on Reddit: {{ request.args.get('stats_removed') }}.{% endif %}</p>
+    {% endif %}
+    {% for article in posted %}
+      <article class="card news">
+        {% if article.image_url %}
+          <img class="thumb" src="{{ article.image_url }}" alt="">
+        {% endif %}
+        <h3><a href="{{ article.reddit_url or ('https://reddit.com/r/' ~ subreddit ~ '/comments/' ~ article.reddit_post_id) }}" target="_blank">{{ article.title }}</a></h3>
+        <p class="byline">{{ article.author or "Staff" }} &middot; {{ article.source }} &middot; posted {{ article.published_at|posted_when }}</p>
+        {% set st = post_stats.get(article.reddit_post_id) %}
+        {% if st %}
+          <p class="meta">&#9650; {{ st.score }}{% if st.score_change_24h %} ({{ "%+d"|format(st.score_change_24h) }} today){% endif %}
+            {% if st.upvote_ratio %}&middot; {{ (st.upvote_ratio * 100)|round|int }}% upvoted{% endif %}
+            &middot; {{ st.num_comments }} comment{{ "" if st.num_comments == 1 else "s" }}{% if st.comments_change_24h %} ({{ "%+d"|format(st.comments_change_24h) }} today){% endif %}
+            &middot; <a href="{{ url_for('article_stats', article_id=article.id) }}">history and comments</a></p>
+        {% else %}
+          <p class="meta">No numbers yet. <a href="{{ url_for('article_stats', article_id=article.id) }}">details</a></p>
+        {% endif %}
+        {{ remove_button(article, confirm=True) }}
+      </article>
+    {% else %}
+      <p class="empty">Nothing posted yet.</p>
+    {% endfor %}
+
+  {% elif tab == 'subreddit' %}
+    <h2>r/{{ subreddit }} ({{ subreddit_posts|length }})</h2>
+    <p class="meta">The newest posts in the subreddit, for moderating.
+      {% if show_hidden %}<a href="{{ url_for('index', tab='subreddit') }}">Hide hidden posts</a>
+      {% else %}<a href="{{ url_for('index', tab='subreddit', show_hidden='1') }}">Show hidden posts</a>{% endif %}</p>
+    <form method="post" action="{{ url_for('subreddit_sync_route') }}" style="display:inline">
+      <button type="submit">Sync subreddit posts</button>
+    </form>
+    {% if request.args.get('sync_error') %}
+      <p class="meta">Could not read the subreddit's posts: {{ request.args.get('sync_error') }}. Enter the Reddit app's Client ID and Secret (and an account, to see reports) on the Config page.</p>
+    {% elif request.args.get('synced') is not none %}
+      <p class="meta">Read {{ request.args.get('synced') }} post(s) from the subreddit.</p>
+    {% endif %}
+    {% for post in subreddit_posts %}
+      <article class="card">
+        <h3><a href="{{ post.permalink }}" target="_blank">{{ post.title }}</a></h3>
+        <p class="meta">u/{{ post.author }} &middot; {{ post.num_comments }} comments &middot; score {{ post.score }} &middot; {{ post.flair or "no flair" }}</p>
+        {% for flag in post.action_flags %}<span class="badge flag">{{ flag }}</span>{% endfor %}
+        {% for tag in post.tags %}<span class="badge tag">{{ tag }}</span>{% endfor %}
+        <form method="post" action="{{ url_for('subreddit_post_tag', fullname=post.fullname) }}" style="display:inline">
+          <input type="text" name="tag" placeholder="add tag" style="width:8rem;display:inline;padding:0.2rem;">
+          <button type="submit" class="secondary">Add tag</button>
+        </form>
+        {% if 'hidden' in post.tags %}
+          <form method="post" action="{{ url_for('subreddit_post_unhide', fullname=post.fullname) }}" style="display:inline">
+            <button type="submit" class="secondary">Unhide</button>
+          </form>
+        {% else %}
+          <form method="post" action="{{ url_for('subreddit_post_hide', fullname=post.fullname) }}" style="display:inline">
+            <button type="submit" class="secondary">Hide</button>
+          </form>
+        {% endif %}
+      </article>
+    {% else %}
+      <p class="empty">No subreddit posts synced yet. Click "Sync subreddit posts".</p>
+    {% endfor %}
+
+  {% else %}
+    <h2>Removed ({{ removed|length }})</h2>
+    <p class="meta">Taken off the lists. These links will not be added again. Restore brings one back.</p>
+    {% for article in removed %}
+      <article class="card muted">
+        <h3>{{ article.title }}</h3>
+        <p class="meta">{{ article.source }} &middot; posted {{ article.published_at|posted_when }}</p>
+        <form method="post" action="{{ url_for('article_restore', article_id=article.id) }}" style="display:inline"><button type="submit" class="secondary">Restore</button></form>
+      </article>
+    {% else %}
+      <p class="empty">Nothing removed.</p>
+    {% endfor %}
+  {% endif %}
+
+  </section>
+</div>
+{% endblock %}
